@@ -1,0 +1,7 @@
+.idea/
+Debug
+bin
+obj
+**/[Pp]ackages/*
+*.DotSettings.user
+.vs
