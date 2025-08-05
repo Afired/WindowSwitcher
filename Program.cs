@@ -12,6 +12,8 @@ internal static class Program
         "TextInputHost",
     }.ToFrozenSet();
 
+    public static readonly HashSet<InputKey> KeysDown = new HashSet<InputKey>();
+
     public static int Main(string[] args)
     {
         bool ctrlDown = false;
@@ -21,11 +23,9 @@ internal static class Program
         IntPtr hookID = IntPtr.Zero;
         InputBindings.LowLevelKeyboardProc hook = HookCallback; // stored in variable to not be garbage collected
         hookID = InputBindings.SetHook(hook);
-        Console.WriteLine($"Set Hook: '{hookID}'");
 
         Console.CancelKeyPress += (s, e) =>
         {
-            Console.WriteLine("Ctrl+C detected, unhooking...");
             InputBindings.UnhookWindowsHookEx(hookID);
             e.Cancel = true; // prevent default exit
             Environment.Exit(0);
@@ -38,11 +38,12 @@ internal static class Program
         }
 
         InputBindings.UnhookWindowsHookEx(hookID);
-        Console.WriteLine($"Unhooked: '{hookID}'");
         return 0;
 
         IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
         {
+            bool consumeInput = false;
+            
             if (nCode >= 0)
             {
                 int vkCode = Marshal.ReadInt32(lParam);
@@ -51,6 +52,19 @@ internal static class Program
                 bool keyDown = wParam is InputBindings.WM_KEYDOWN or InputBindings.WM_SYSKEYDOWN;
                 bool keyUp = wParam is InputBindings.WM_KEYUP or InputBindings.WM_SYSKEYUP;
 
+                if (keyDown)
+                {
+                    if (!KeysDown.Add(key))
+                    {
+                        return 1;
+                    }
+                }
+
+                if (keyUp)
+                {
+                    KeysDown.Remove(key);
+                }
+                
                 if (key is InputKey.LeftControl)
                     ctrlDown = keyDown;
 
@@ -65,12 +79,24 @@ internal static class Program
                         if (isAlphaNumeric)
                         {
                             currentInput += key.ToString();
+                            consumeInput = true;
+                        }
                         
-                            Console.Clear();
-                            Console.WriteLine($"Filtering input: {currentInput}");
-                    
-                            // Return a non-zero value to consume input
-                            return 1;
+                        Console.Clear();
+                        Console.WriteLine($"Filtering input: {currentInput}");
+                            
+                        try
+                        {
+                            IEnumerable<WindowInfo> windows = QueryWindows(currentInput);
+                                
+                            foreach (WindowInfo window in windows)
+                            {
+                                Console.WriteLine(window);
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            Console.WriteLine(e.StackTrace);
                         }
                     }
                 }
@@ -82,7 +108,16 @@ internal static class Program
                         {
                             try
                             {
-                                QueryWindows(currentInput);
+                                IEnumerable<WindowInfo> windows = QueryWindows(currentInput);
+                                
+                                Console.Clear();
+                                
+                                if (windows.FirstOrDefault() is { } pWindow)
+                                {
+                                    ActivateWindow(pWindow.Handle);
+                                    
+                                    Console.WriteLine(pWindow);
+                                }
                             }
                             catch (Exception e)
                             {
@@ -90,42 +125,37 @@ internal static class Program
                             }
                             currentInput = string.Empty;
                         }
+                        else
+                        {
+                            Console.Clear();
+                        }
                     }
                 }
             }
 
-            return InputBindings.CallNextHookEx(hookID, nCode, wParam, lParam);
+            if (consumeInput)
+            {
+                return 1;
+            }
+            else
+            {
+                return InputBindings.CallNextHookEx(hookID, nCode, wParam, lParam);
+            }
         }
 
-
-        void QueryWindows(string input)
+        IEnumerable<WindowInfo> QueryWindows(string input)
         {
             IEnumerable<WindowInfo> filteredWindows = Desktop.GetWindows();
-
             filteredWindows = filteredWindows.Where(x => x is
             {
                 IsVisible: true,
                 Title.Length: > 0,
                 IsToolWindow: false,
             });
-
             filteredWindows = filteredWindows.Where(x => !BlacklistedProcessNames.Contains(x.ProcessName));
-
             filteredWindows = filteredWindows.Where(x => x.ProcessName.StartsWith(input, StringComparison.OrdinalIgnoreCase));
-
-            if (filteredWindows.FirstOrDefault() is { } pWindow)
-            {
-                ActivateWindow(pWindow.Handle);
-            }
-    
             filteredWindows = filteredWindows.OrderBy(x => x.ProcessName);
-
-            foreach (WindowInfo userWindow in filteredWindows)
-            {
-                string processDisplayName = userWindow.ProcessName;
-                string windowDisplayTitle = userWindow.Title[..userWindow.Title.LastIndexOfAny(['–', '-', '—'])];
-                Console.WriteLine($"[{processDisplayName}] {windowDisplayTitle}");
-            }
+            return filteredWindows;
         }
 
         void ActivateWindow(IntPtr hWnd)

@@ -18,6 +18,24 @@ public class WindowInfo
     {
         Handle = handle;
     }
+
+    public override string ToString()
+    {
+        Span<char> processDisplayName = stackalloc char[ProcessName.Length];
+        ProcessName.AsSpan().CopyTo(processDisplayName);
+        if (processDisplayName.Length >= 1)
+        {
+            processDisplayName[0] = char.ToUpper(processDisplayName[0]);
+        }
+        
+        Span<char> windowDisplayTitle = stackalloc char[Title.Length];
+        Title.AsSpan().CopyTo(windowDisplayTitle);
+        if(Title.LastIndexOfAny(['–', '-', '—']) is > 0 and var i)
+        {
+            windowDisplayTitle = windowDisplayTitle[..i];
+        }
+        return $"[{processDisplayName}] {windowDisplayTitle}";
+    }
 }
 
 public static class Desktop
