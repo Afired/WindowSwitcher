@@ -4,20 +4,25 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Drawing;
 using System.Linq;
 using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.Media;
-using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using Bitmap = Avalonia.Media.Imaging.Bitmap;
+using Brushes = Avalonia.Media.Brushes;
+using Color = Avalonia.Media.Color;
+using Image = Avalonia.Controls.Image;
 
 namespace WindowSwitcher;
 
 public class LauncherWindow : Window
 {
-    private TextBox _searchBox;
-    private ListBox _resultsList;
-    private List<WindowEntry> _availableWindows;
+    private readonly TextBox _searchBox;
+    private readonly ListBox _resultsList;
+    private readonly ObservableCollection<WindowEntry> _availableWindows;
     
     public static readonly FrozenSet<string> BlacklistedProcessNames = new HashSet<string>()
     {
@@ -26,16 +31,34 @@ public class LauncherWindow : Window
         "TextInputHost",
     }.ToFrozenSet();
 
+    public Screen? GetLastFocusedScreen()
+    {
+        Screens screens = Screens;
+        IntPtr hwnd = WindowBindings.GetForegroundWindow();
+        if (hwnd != IntPtr.Zero && WindowBindings.GetWindowRect(hwnd, out WindowBindings.Rect rect))
+        {
+            // Use the window's center point
+            int centerX = (rect.Left + rect.Right) / 2;
+            int centerY = (rect.Top + rect.Bottom) / 2;
+
+            return screens.ScreenFromPoint(new PixelPoint(centerX, centerY));
+        }
+
+        return null;
+    }
+
     public LauncherWindow()
     {
         Width = 600;
         SizeToContent = SizeToContent.Height;
-        Screen? screen = Screens.Primary;
+        
+        Screen? screen = GetLastFocusedScreen() ?? Screens.Primary;
         PixelRect workingArea = screen.WorkingArea;
         Position = new PixelPoint(
             (int)(workingArea.X + (workingArea.Width - this.Width) / 2),
             (int)(workingArea.Y + workingArea.Height * 0.1)
         );
+        
         CanResize = false;
         ShowInTaskbar = false;
         Topmost = true;
@@ -43,7 +66,7 @@ public class LauncherWindow : Window
         TransparencyLevelHint = [WindowTransparencyLevel.AcrylicBlur];
         Background = Brushes.Transparent;
 
-        _availableWindows = Desktop.GetWindows()
+        _availableWindows = new ObservableCollection<WindowEntry>(Desktop.GetWindows()
             .Where(x => x is
             {
                 IsVisible: true,
@@ -54,7 +77,7 @@ public class LauncherWindow : Window
             .OrderBy(x => x.ProcessName)
             .Select(x =>
             {
-                var icon = WindowBindings.GetIconForWindow(x.Handle);
+                Icon? icon = WindowBindings.GetIconForWindow(x.Handle);
                 Bitmap? bitmap = null;
                 if (icon != null)
                 {
@@ -67,10 +90,15 @@ public class LauncherWindow : Window
                     Info = x,
                 };
             })
-            .ToList();
+        );
+
+        float brightness = WindowContrastHelper.GetBackdropBrightness(this);
+        Color complimentaryColor = brightness < 0.5 ? Colors.Black : Colors.White;
+        Color contrastColor = brightness < 0.5 ? Colors.White : Colors.Black;
 
         Content = new Border
         {
+            Background = new  SolidColorBrush(new Color(50, 0, 0, 0)),
             Child = new StackPanel
             {
                 Orientation = Orientation.Vertical,
@@ -86,44 +114,53 @@ public class LauncherWindow : Window
                     _resultsList = new ListBox
                     {
                         Margin = new Thickness(10),
-                        MaxHeight = 800,
-                        ItemsSource = _availableWindows.ToArray(),
-                        ItemTemplate = new FuncDataTemplate<WindowEntry>((windowEntry, _) => new Grid
+                        MaxHeight = screen.WorkingArea.Height * 0.75f,
+                        // Background = new SolidColorBrush(new Color(50, 0, 0, 0)),
+                        Background = new SolidColorBrush(new Color(25, complimentaryColor.R, complimentaryColor.R, complimentaryColor.B)),
+                        // Background = Brushes.Transparent,
+                        CornerRadius = new CornerRadius(3),
+                        ItemsSource = _availableWindows,
+                        ItemTemplate = new FuncDataTemplate<WindowEntry>((windowEntry, _) => new Border
                         {
-                            ColumnSpacing = 12,
-                            Columns =
-                            [
-                                new Image
-                                {
-                                    Width = 20,
-                                    Height = 20,
-                                    Source = windowEntry.Icon,
-                                    VerticalAlignment = VerticalAlignment.Center,
-                                },
-                                new Grid
-                                {
-                                    ColumnSpacing = 8,
-                                    VerticalAlignment = VerticalAlignment.Center,
-                                    Columns =
-                                    [
-                                        new TextBlock
-                                        {
-                                            Text = windowEntry.Info.GetProcessDisplayName(),
-                                            FontSize = 14,
-                                            VerticalAlignment = VerticalAlignment.Bottom,
-                                        },
-                                        new TextBlock
-                                        {
-                                            Text = windowEntry.Info.GetDisplayTitle().ToString(),
-                                            FontSize = 11,
-                                            Foreground = Brushes.Gray,
-                                            TextTrimming = TextTrimming.CharacterEllipsis,
-                                            VerticalAlignment = VerticalAlignment.Bottom,
-                                            ColumnDefinition = new ColumnDefinition(GridLength.Star)
-                                        }
-                                    ]
-                                }
-                            ],
+                            Child = new Grid
+                            {
+                                ColumnSpacing = 12,
+                                Columns =
+                                [
+                                    new Image
+                                    {
+                                        Width = 20,
+                                        Height = 20,
+                                        Source = windowEntry.Icon,
+                                        VerticalAlignment = VerticalAlignment.Center,
+                                    },
+                                    new Grid
+                                    {
+                                        ColumnSpacing = 8,
+                                        VerticalAlignment = VerticalAlignment.Center,
+                                        ColumnDefinition = new ColumnDefinition(GridLength.Star),
+                                        Columns =
+                                        [
+                                            new TextBlock
+                                            {
+                                                Text = windowEntry.Info.GetProcessDisplayName(),
+                                                FontSize = 14,
+                                                Foreground = new SolidColorBrush(new Color(200, contrastColor.R, contrastColor.G, contrastColor.B)),
+                                                VerticalAlignment = VerticalAlignment.Bottom,
+                                            },
+                                            new TextBlock
+                                            {
+                                                Text = windowEntry.Info.GetDisplayTitle().ToString(),
+                                                FontSize = 11,
+                                                Foreground = new SolidColorBrush(new Color(125, contrastColor.R, contrastColor.G, contrastColor.B)),
+                                                TextTrimming = TextTrimming.CharacterEllipsis,
+                                                VerticalAlignment = VerticalAlignment.Bottom,
+                                                ColumnDefinition = new ColumnDefinition(GridLength.Star)
+                                            }
+                                        ]
+                                    }
+                                ],
+                            }
                         }, true),
                     },
                 ]
@@ -140,6 +177,11 @@ public class LauncherWindow : Window
             WindowBindings.SetRoundedCorners(this, WindowBindings.DwmWindowCornerPreference.RoundSmall);
             _searchBox.Focus();
             // _resultsList.SelectedIndex = 0;
+        };
+
+        Closed += (_, _) =>
+        {
+
         };
         
         LostFocus += (_, _) => Close();

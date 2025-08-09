@@ -133,4 +133,19 @@ public static class WindowBindings
         ms.Seek(0, SeekOrigin.Begin);
         return new Bitmap(ms);
     }
+    
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    public static extern bool GetWindowRect(IntPtr hWnd, out Rect lpRect);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct Rect
+    {
+        public int Left;
+        public int Top;
+        public int Right;
+        public int Bottom;
+    }
 }
