@@ -61,7 +61,7 @@ public class LauncherWindow : Window
                     bitmap = WindowBindings.ConvertToAvaloniaBitmap(icon);
                 }
 
-                return new WindowEntry()
+                return new WindowEntry
                 {
                     Icon = bitmap,
                     Info = x,
@@ -69,55 +69,64 @@ public class LauncherWindow : Window
             })
             .ToList();
 
-        Content = new Border()
+        Content = new Border
         {
-            Child = new Border
+            Child = new StackPanel
             {
-                // CornerRadius = new CornerRadius(12),
-                // Background = new SolidColorBrush(Color.FromArgb(10, 30, 30, 30)),
-                Child = new StackPanel()
-                {
-                    Orientation = Orientation.Vertical,
-                    VerticalAlignment = VerticalAlignment.Stretch,
-                    HorizontalAlignment = HorizontalAlignment.Stretch,
-                    Children =
+                Orientation = Orientation.Vertical,
+                VerticalAlignment = VerticalAlignment.Stretch,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                Items =
+                [
+                    _searchBox = new TextBox
                     {
-                        new TextBox
+                        Watermark = "Search...",
+                        Margin = new Thickness(10),
+                    },
+                    _resultsList = new ListBox
+                    {
+                        Margin = new Thickness(10),
+                        MaxHeight = 800,
+                        ItemsSource = _availableWindows.ToArray(),
+                        ItemTemplate = new FuncDataTemplate<WindowEntry>((windowEntry, _) => new Grid
                         {
-                            Watermark = "Search windows...",
-                            Margin = new Thickness(10),
-                        }.Set(ref _searchBox),
-                        new ListBox
-                        {
-                            Margin = new Thickness(10),
-                            MaxHeight = 800,
-                            ItemsSource = _availableWindows.ToArray(),
-                            ItemTemplate = new FuncDataTemplate<WindowEntry>((windowEntry, _) =>
-                            {
-                                return new StackPanel
+                            ColumnSpacing = 12,
+                            Columns =
+                            [
+                                new Image
                                 {
-                                    Orientation = Orientation.Horizontal,
-                                    Spacing = 8,
-                                    Children =
-                                    {
-                                        new Image
+                                    Width = 20,
+                                    Height = 20,
+                                    Source = windowEntry.Icon,
+                                    VerticalAlignment = VerticalAlignment.Center,
+                                },
+                                new Grid
+                                {
+                                    ColumnSpacing = 8,
+                                    VerticalAlignment = VerticalAlignment.Center,
+                                    Columns =
+                                    [
+                                        new TextBlock
                                         {
-                                            Width = 24,
-                                            Height = 24,
-                                            Source = windowEntry.Icon,
-                                            VerticalAlignment = VerticalAlignment.Center
+                                            Text = windowEntry.Info.GetProcessDisplayName(),
+                                            FontSize = 14,
+                                            VerticalAlignment = VerticalAlignment.Bottom,
                                         },
                                         new TextBlock
                                         {
-                                            Text = windowEntry.Info.ToString(),
-                                            VerticalAlignment = VerticalAlignment.Center
+                                            Text = windowEntry.Info.GetDisplayTitle().ToString(),
+                                            FontSize = 11,
+                                            Foreground = Brushes.Gray,
+                                            TextTrimming = TextTrimming.CharacterEllipsis,
+                                            VerticalAlignment = VerticalAlignment.Bottom,
+                                            ColumnDefinition = new ColumnDefinition(GridLength.Star)
                                         }
-                                    }
-                                };
-                            }, true),
-                        }.Set(ref _resultsList),
-                    }
-                }
+                                    ]
+                                }
+                            ],
+                        }, true),
+                    },
+                ]
             }
         };
         

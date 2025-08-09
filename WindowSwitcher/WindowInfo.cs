@@ -38,6 +38,30 @@ public class WindowInfo
         }
         return $"[{processDisplayName}] {windowDisplayTitle}";
     }
+
+    public string GetProcessDisplayName()
+    {
+        if (ProcessName.Length > 0)
+        {
+            return $"{char.ToUpper(ProcessName[0])}{ProcessName[1..]}";
+        }
+        else
+        {
+            return ProcessName;
+        }
+    }
+    
+    public ReadOnlySpan<char> GetDisplayTitle()
+    {
+        if(Title.LastIndexOfAny(['–', '-', '—']) is > 0 and var i)
+        {
+            return Title.AsSpan()[..i];
+        }
+        else
+        {
+            return Title.AsSpan();
+        }
+    }
 }
 
 public static class Desktop

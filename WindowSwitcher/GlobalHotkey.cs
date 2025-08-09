@@ -14,13 +14,11 @@ public static class GlobalHotkey
     public static void RegisterHotkey(Action onHotkeyPressed)
     {
         // Create a message loop window
-        Thread thread = new Thread(() =>
+        Thread thread = new Thread(new MessageOnlyWindow(onHotkeyPressed).RunMessageLoop)
         {
-            MessageOnlyWindow msgOnlyWnd = new MessageOnlyWindow(onHotkeyPressed);
-            msgOnlyWnd.RunMessageLoop();
-        });
+            IsBackground = true,
+        };
         thread.SetApartmentState(ApartmentState.STA);
-        thread.IsBackground = true;
         thread.Start();
     }
 

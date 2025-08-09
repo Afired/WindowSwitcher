@@ -15,6 +15,8 @@ public class App : Application
     {
         RequestedThemeVariant = ThemeVariant.Dark;
         Styles.Add(new FluentTheme());
+        
+        Extensions.RegisterExtendedProperties();
     }
 
     public override void OnFrameworkInitializationCompleted()
