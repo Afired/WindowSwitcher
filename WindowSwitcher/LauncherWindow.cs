@@ -154,7 +154,7 @@ public class LauncherWindow : Window
                                                 Foreground = new SolidColorBrush(new Color(125, contrastColor.R, contrastColor.G, contrastColor.B)),
                                                 TextTrimming = TextTrimming.CharacterEllipsis,
                                                 VerticalAlignment = VerticalAlignment.Bottom,
-                                                ColumnDefinition = new ColumnDefinition(GridLength.Star)
+                                                ColumnDefinition = new ColumnDefinition(GridLength.Star),
                                             }
                                         ]
                                     }
