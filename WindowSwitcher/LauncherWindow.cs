@@ -115,13 +115,12 @@ public class LauncherWindow : Window
                     {
                         Margin = new Thickness(10),
                         MaxHeight = screen.WorkingArea.Height * 0.75f,
-                        // Background = new SolidColorBrush(new Color(50, 0, 0, 0)),
                         Background = new SolidColorBrush(new Color(25, complimentaryColor.R, complimentaryColor.R, complimentaryColor.B)),
-                        // Background = Brushes.Transparent,
                         CornerRadius = new CornerRadius(3),
                         ItemsSource = _availableWindows,
                         ItemTemplate = new FuncDataTemplate<WindowEntry>((windowEntry, _) => new Border
                         {
+                            Background = Brushes.Transparent, // important to be a hit target
                             Child = new Grid
                             {
                                 ColumnSpacing = 12,
@@ -161,7 +160,12 @@ public class LauncherWindow : Window
                                     }
                                 ],
                             }
-                        }, true),
+                        }.WithPointerPressedEvent((_, e) =>
+                        {
+                            WindowBindings.ActivateWindow(windowEntry.Info.Handle);
+                            e.Handled = true;
+                            Close();
+                        }), true),
                     },
                 ]
             }
@@ -184,7 +188,6 @@ public class LauncherWindow : Window
 
         };
         
-        LostFocus += (_, _) => Close();
         Deactivated += (_, _) => Close();
     }
 
@@ -202,8 +205,6 @@ public class LauncherWindow : Window
 
     private void SearchBoxOnKeyUp(object? sender, KeyEventArgs e)
     {
-        Console.WriteLine($"Up: {e.Key}");
-
         bool isQuickSwitch = e
             is { Key: Key.Space, KeyModifiers: KeyModifiers.Control }
             or { Key: Key.LeftCtrl };
@@ -263,9 +264,8 @@ public class LauncherWindow : Window
             e.Handled = true;
             Close();
         }
-        
         // can also cancel with ctrl
-        if (e.Key is Key.LeftCtrl)
+        else if (e.Key is Key.LeftCtrl)
         {
             e.Handled = true;
             Close();
@@ -274,7 +274,6 @@ public class LauncherWindow : Window
 
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {
-        Console.WriteLine($"Down: {e.Key}");
         if (e.Key == Key.Enter)
         {
             if (_resultsList.SelectedItem is WindowEntry windowEntry)
@@ -284,8 +283,7 @@ public class LauncherWindow : Window
             e.Handled = true;
             Close();
         }
-
-        if (e.Key == Key.Escape)
+        else if (e.Key == Key.Escape)
         {
             Close();
         }

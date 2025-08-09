@@ -1,20 +1,15 @@
-﻿using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
+﻿using System;
+using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 
 namespace WindowSwitcher;
 
 public static class Extensions
 {
-    public static readonly StyledProperty<ColumnDefinition?> ColumnDefinitionProperty;
+    public static readonly StyledProperty<ColumnDefinition?> ColumnDefinitionProperty = AvaloniaProperty.Register<Control, ColumnDefinition?>(nameof(ColumnDefinition));
 
-    [SuppressMessage("AvaloniaProperty", "AVP1001:The same AvaloniaProperty should not be registered twice")]
-    static Extensions()
-    {
-        Extensions.ColumnDefinitionProperty = AvaloniaProperty.Register<Control, ColumnDefinition?>(nameof(ColumnDefinition));
-    }
-    
     public static void RegisterExtendedProperties()
     {
         // triggers static constructor
@@ -58,6 +53,15 @@ public static class Extensions
         {
             get => control.GetValue(ColumnDefinitionProperty);
             set => control.SetValue(ColumnDefinitionProperty, value);
+        }
+    }
+
+    extension<TInputElement>(TInputElement inputElement) where TInputElement : InputElement
+    {
+        public TInputElement WithPointerPressedEvent(EventHandler<PointerPressedEventArgs> eventHandler)
+        {
+            inputElement.PointerPressed += eventHandler;
+            return inputElement;
         }
     }
 }
