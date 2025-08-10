@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Themes.Fluent;
 using Avalonia.Threading;
@@ -13,10 +14,19 @@ public class App : Application
     
     public override void Initialize()
     {
+        Extensions.RegisterExtendedProperties();
+        
         RequestedThemeVariant = ThemeVariant.Dark;
         Styles.Add(new FluentTheme());
-        
-        Extensions.RegisterExtendedProperties();
+        Styles.Add(new Style(x => x.OfType<ListBoxItem>())
+        {
+            Setters =
+            {
+                new Setter(ListBoxItem.PaddingProperty, new Thickness(0)),
+                new Setter(ListBoxItem.BackgroundProperty, Brushes.Transparent),
+            },
+            
+        });
     }
 
     public override void OnFrameworkInitializationCompleted()

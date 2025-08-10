@@ -49,14 +49,15 @@ public class LauncherWindow : Window
 
     public LauncherWindow()
     {
-        Width = 600;
-        SizeToContent = SizeToContent.Height;
-        
         Screen? screen = GetLastFocusedScreen() ?? Screens.Primary;
         PixelRect workingArea = screen.WorkingArea;
+
+        Width = 600;
+        SizeToContent = SizeToContent.Height;
+        MaxHeight = workingArea.Height * 0.7d;
         Position = new PixelPoint(
-            (int)(workingArea.X + (workingArea.Width - this.Width) / 2),
-            (int)(workingArea.Y + workingArea.Height * 0.1)
+            (int)(workingArea.X + (workingArea.Width - Width) / 2d),
+            (int)(workingArea.Y + (workingArea.Height - MaxHeight) / 2d)
         );
         
         CanResize = false;
@@ -99,27 +100,27 @@ public class LauncherWindow : Window
         Content = new Border
         {
             Background = new  SolidColorBrush(new Color(50, 0, 0, 0)),
-            Child = new StackPanel
+            Padding = new Thickness(10),
+            Child = new Grid
             {
-                Orientation = Orientation.Vertical,
                 VerticalAlignment = VerticalAlignment.Stretch,
                 HorizontalAlignment = HorizontalAlignment.Stretch,
-                Items =
+                RowSpacing = 10,
+                Rows =
                 [
                     _searchBox = new TextBox
                     {
                         Watermark = "Search...",
-                        Margin = new Thickness(10),
                     },
                     _resultsList = new ListBox
                     {
-                        Margin = new Thickness(10),
-                        MaxHeight = screen.WorkingArea.Height * 0.75f,
+                        RowDefinition = new RowDefinition(GridLength.Star),
                         Background = new SolidColorBrush(new Color(25, complimentaryColor.R, complimentaryColor.R, complimentaryColor.B)),
                         CornerRadius = new CornerRadius(3),
                         ItemsSource = _availableWindows,
                         ItemTemplate = new FuncDataTemplate<WindowEntry>((windowEntry, _) => new Border
                         {
+                            Padding = new Thickness(10),
                             Background = Brushes.Transparent, // important to be a hit target
                             Child = new Grid
                             {
