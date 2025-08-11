@@ -221,10 +221,13 @@ public class LauncherWindow : Window
         {
             _filteredWindows.Add(item);
         }
-        
-        if (!((IEnumerable<WindowEntry>)_resultsList.ItemsSource).Contains(_resultsList.SelectedItem as WindowEntry))
+
+        if (query != string.Empty)
         {
-            _resultsList.SelectedIndex = 0;
+            if (!((IEnumerable<WindowEntry>)_resultsList.ItemsSource).Contains(_resultsList.SelectedItem as WindowEntry))
+            {
+                _resultsList.SelectedIndex = 0;
+            }
         }
     }
 
@@ -238,11 +241,6 @@ public class LauncherWindow : Window
             if (_resultsList.SelectedItem is WindowEntry windowEntry)
             {
                 WindowBindings.ActivateWindow(windowEntry.Info.Handle);
-                e.Handled = true;
-                Close();
-            }
-            else if (_resultsList.Items.Count == 0)
-            {
                 e.Handled = true;
                 Close();
             }
