@@ -6,10 +6,12 @@ using Avalonia.Input;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
 using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform;
+using Avalonia.Threading;
 
 namespace WindowSwitcher;
 
@@ -17,7 +19,8 @@ public class LauncherWindow : Window
 {
     private readonly TextBox _searchBox;
     private readonly ListBox _resultsList;
-    private readonly ObservableCollection<WindowEntry> _availableWindows;
+    private readonly ObservableCollection<WindowEntry> _allWindows = new();
+    private readonly ObservableCollection<WindowEntry> _filteredWindows = new();
     
     public static readonly FrozenSet<string> BlacklistedProcessNames = new HashSet<string>()
     {
@@ -62,32 +65,6 @@ public class LauncherWindow : Window
         TransparencyLevelHint = [WindowTransparencyLevel.AcrylicBlur];
         Background = Brushes.Transparent;
         
-        _availableWindows = new ObservableCollection<WindowEntry>(Desktop.GetWindows()
-            .Where(x => x is
-            {
-                IsVisible: true,
-                Title.Length: > 0,
-                IsToolWindow: false,
-            })
-            .Where(x => !BlacklistedProcessNames.Contains(x.ProcessName))
-            .OrderBy(x => x.ProcessName)
-            .Select(x =>
-            {
-                System.Drawing.Icon? icon = WindowBindings.GetIconForWindow(x.Handle);
-                Avalonia.Media.Imaging.Bitmap? bitmap = null;
-                if (icon != null)
-                {
-                    bitmap = WindowBindings.ConvertToAvaloniaBitmap(icon);
-                }
-
-                return new WindowEntry
-                {
-                    Icon = bitmap,
-                    Info = x,
-                };
-            })
-        );
-
         float brightness = WindowContrastHelper.GetBackdropBrightness(this);
         Color complimentaryColor = brightness < 0.5 ? Colors.Black : Colors.White;
         Color contrastColor = brightness < 0.5 ? Colors.White : Colors.Black;
@@ -114,7 +91,7 @@ public class LauncherWindow : Window
                         RowDefinition = new RowDefinition(GridLength.Star),
                         Background = new SolidColorBrush(new Color(25, complimentaryColor.R, complimentaryColor.R, complimentaryColor.B)),
                         CornerRadius = new CornerRadius(3),
-                        ItemsSource = _availableWindows,
+                        ItemsSource = _filteredWindows,
                         ItemTemplate = new FuncDataTemplate<WindowEntry>((windowEntry, _) => new Border
                         {
                             Padding = new Thickness(10),
@@ -170,7 +147,8 @@ public class LauncherWindow : Window
         };
         
         _searchBox.KeyDown += SearchBoxOnKeyDown;
-        _searchBox.TextChanged += SearchChanged;
+        _searchBox.TextChanged += (_, _) => ApplyFilter();
+        _allWindows.CollectionChanged += (_, _) => ApplyFilter();
         _searchBox.KeyUp += SearchBoxOnKeyUp;
         KeyDown += OnKeyDown;
         
@@ -187,13 +165,62 @@ public class LauncherWindow : Window
         // for debugging purposes we don't automatically close the window in debug builds
         Deactivated += (_, _) => Close();
 #endif
+        FetchWindows();
     }
 
-    private void SearchChanged(object? sender, TextChangedEventArgs e)
+    private void FetchWindows()
+    {
+        // fetch available windows
+        new Thread(() =>
+        {
+            WindowEntry[] windowEntries = Desktop.GetWindows()
+                .Where(x => x is
+                {
+                    IsVisible: true,
+                    Title.Length: > 0,
+                    IsToolWindow: false,
+                })
+                .Where(x => !BlacklistedProcessNames.Contains(x.ProcessName))
+                .OrderBy(x => x.ProcessName)
+                .Select(x =>
+                {
+                    System.Drawing.Icon? icon = WindowBindings.GetIconForWindow(x.Handle);
+                    Avalonia.Media.Imaging.Bitmap? bitmap = null;
+                    if (icon != null)
+                    {
+                        bitmap = WindowBindings.ConvertToAvaloniaBitmap(icon);
+                    }
+
+                    return new WindowEntry
+                    {
+                        Icon = bitmap,
+                        Info = x,
+                    };
+                }).ToArray();
+            
+            Dispatcher.UIThread.Post(() =>
+            {
+                foreach (WindowEntry windowEntry in windowEntries)
+                {
+                    _allWindows.Add(windowEntry);
+                }
+            });
+        })
+        {
+            IsBackground = true,
+        }.Start();
+    }
+
+    private void ApplyFilter()
     {
         string query = _searchBox.Text ?? string.Empty;
-        IEnumerable<WindowEntry> matches = _availableWindows.Where(x => x.Info.ProcessName.StartsWith(query, StringComparison.OrdinalIgnoreCase));
-        _resultsList.ItemsSource = matches.ToArray();
+        IEnumerable<WindowEntry> matches = _allWindows.Where(x => x.Info.ProcessName.StartsWith(query, StringComparison.OrdinalIgnoreCase));
+
+        _filteredWindows.Clear();
+        foreach (var item in matches)
+        {
+            _filteredWindows.Add(item);
+        }
         
         if (!((IEnumerable<WindowEntry>)_resultsList.ItemsSource).Contains(_resultsList.SelectedItem as WindowEntry))
         {
