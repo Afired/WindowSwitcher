@@ -5,16 +5,11 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Drawing;
 using System.Linq;
 using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform;
-using Bitmap = Avalonia.Media.Imaging.Bitmap;
-using Brushes = Avalonia.Media.Brushes;
-using Color = Avalonia.Media.Color;
-using Image = Avalonia.Controls.Image;
 
 namespace WindowSwitcher;
 
@@ -66,7 +61,7 @@ public class LauncherWindow : Window
         SystemDecorations = SystemDecorations.None;
         TransparencyLevelHint = [WindowTransparencyLevel.AcrylicBlur];
         Background = Brushes.Transparent;
-
+        
         _availableWindows = new ObservableCollection<WindowEntry>(Desktop.GetWindows()
             .Where(x => x is
             {
@@ -78,8 +73,8 @@ public class LauncherWindow : Window
             .OrderBy(x => x.ProcessName)
             .Select(x =>
             {
-                Icon? icon = WindowBindings.GetIconForWindow(x.Handle);
-                Bitmap? bitmap = null;
+                System.Drawing.Icon? icon = WindowBindings.GetIconForWindow(x.Handle);
+                Avalonia.Media.Imaging.Bitmap? bitmap = null;
                 if (icon != null)
                 {
                     bitmap = WindowBindings.ConvertToAvaloniaBitmap(icon);
@@ -110,10 +105,12 @@ public class LauncherWindow : Window
                 [
                     _searchBox = new TextBox
                     {
+                        Classes = { "WindowSearch" },
                         Watermark = "Search...",
                     },
                     _resultsList = new ListBox
                     {
+                        Classes = { "WindowList" },
                         RowDefinition = new RowDefinition(GridLength.Star),
                         Background = new SolidColorBrush(new Color(25, complimentaryColor.R, complimentaryColor.R, complimentaryColor.B)),
                         CornerRadius = new CornerRadius(3),
@@ -121,7 +118,7 @@ public class LauncherWindow : Window
                         ItemTemplate = new FuncDataTemplate<WindowEntry>((windowEntry, _) => new Border
                         {
                             Padding = new Thickness(10),
-                            Background = Brushes.Transparent, // important to be a hit target
+                            Background = Brushes.Transparent, // important to be a hit target for callback
                             Child = new Grid
                             {
                                 ColumnSpacing = 12,
@@ -184,12 +181,12 @@ public class LauncherWindow : Window
             // _resultsList.SelectedIndex = 0;
         };
 
-        Closed += (_, _) =>
-        {
-
-        };
-        
+#if DEBUG
+        this.AttachDevTools();
+#else
+        // for debugging purposes we don't automatically close the window in debug builds
         Deactivated += (_, _) => Close();
+#endif
     }
 
     private void SearchChanged(object? sender, TextChangedEventArgs e)

@@ -1,7 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Themes.Fluent;
 using Avalonia.Threading;
@@ -16,17 +15,12 @@ public class App : Application
     {
         Extensions.RegisterExtendedProperties();
         
-        RequestedThemeVariant = ThemeVariant.Dark;
         Styles.Add(new FluentTheme());
-        Styles.Add(new Style(x => x.OfType<ListBoxItem>())
-        {
-            Setters =
-            {
-                new Setter(ListBoxItem.PaddingProperty, new Thickness(0)),
-                new Setter(ListBoxItem.BackgroundProperty, Brushes.Transparent),
-            },
-            
-        });
+        Styles.Add(new WindowSwitcherTheme());
+        
+        // FluentTheme.DensityStyleProperty;
+        
+        RequestedThemeVariant = ThemeVariant.Dark;
     }
 
     public override void OnFrameworkInitializationCompleted()
@@ -39,10 +33,14 @@ public class App : Application
             {
                 Dispatcher.UIThread.Post(() =>
                 {
-                    if (_launcher is null || !_launcher.IsVisible)
+                    if (_launcher is null)
                     {
                         _launcher = new LauncherWindow();
                         _launcher.Closed += (_, _) => _launcher = null;
+                    }
+                    
+                    if (!_launcher.IsVisible)
+                    {
                         _launcher.Show();
                         _launcher.Activate();
                     }
