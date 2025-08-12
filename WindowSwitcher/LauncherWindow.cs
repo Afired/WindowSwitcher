@@ -9,8 +9,10 @@ using System.Linq;
 using System.Threading;
 using Avalonia.Controls.Templates;
 using Avalonia.Layout;
+using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 using Avalonia.Platform;
+using Avalonia.Styling;
 using Avalonia.Threading;
 
 namespace WindowSwitcher;
@@ -49,7 +51,7 @@ public class LauncherWindow : Window
     {
         Screen? screen = GetLastFocusedScreen() ?? Screens.Primary;
         PixelRect workingArea = screen.WorkingArea;
-
+        
         Width = 600;
         SizeToContent = SizeToContent.Height;
         MaxHeight = workingArea.Height * 0.7d;
@@ -62,13 +64,9 @@ public class LauncherWindow : Window
         ShowInTaskbar = false;
         Topmost = true;
         SystemDecorations = SystemDecorations.None;
-        TransparencyLevelHint = [WindowTransparencyLevel.AcrylicBlur];
+        TransparencyLevelHint = [ WindowTransparencyLevel.AcrylicBlur ];
         Background = Brushes.Transparent;
         
-        float brightness = WindowContrastHelper.GetBackdropBrightness(this);
-        Color complimentaryColor = brightness < 0.5 ? Colors.Black : Colors.White;
-        Color contrastColor = brightness < 0.5 ? Colors.White : Colors.Black;
-
         Content = new Border
         {
             Background = new  SolidColorBrush(new Color(50, 0, 0, 0)),
@@ -89,7 +87,7 @@ public class LauncherWindow : Window
                     {
                         Classes = { "WindowList" },
                         RowDefinition = new RowDefinition(GridLength.Star),
-                        Background = new SolidColorBrush(new Color(25, complimentaryColor.R, complimentaryColor.R, complimentaryColor.B)),
+                        [!ListBox.BackgroundProperty] = new DynamicResourceExtension("ComplimentaryBrushLow"),
                         CornerRadius = new CornerRadius(3),
                         ItemsSource = _filteredWindows,
                         ItemTemplate = new FuncDataTemplate<WindowEntry>((windowEntry, _) => new Border
@@ -119,18 +117,18 @@ public class LauncherWindow : Window
                                             {
                                                 Text = windowEntry.Info.GetProcessDisplayName(),
                                                 FontSize = 14,
-                                                Foreground = new SolidColorBrush(new Color(200, contrastColor.R, contrastColor.G, contrastColor.B)),
+                                                [!TextBlock.ForegroundProperty] = new DynamicResourceExtension("ContrastBrushHigh"),
                                                 VerticalAlignment = VerticalAlignment.Bottom,
                                             },
                                             new TextBlock
                                             {
                                                 Text = windowEntry.Info.GetDisplayTitle().ToString(),
                                                 FontSize = 11,
-                                                Foreground = new SolidColorBrush(new Color(125, contrastColor.R, contrastColor.G, contrastColor.B)),
+                                                [!TextBlock.ForegroundProperty] = new DynamicResourceExtension("ContrastBrushMedium"),
                                                 TextTrimming = TextTrimming.CharacterEllipsis,
                                                 VerticalAlignment = VerticalAlignment.Bottom,
                                                 ColumnDefinition = new ColumnDefinition(GridLength.Star),
-                                            }
+                                            },
                                         ]
                                     }
                                 ],
@@ -166,6 +164,14 @@ public class LauncherWindow : Window
         Deactivated += (_, _) => Close();
 #endif
         FetchWindows();
+        AdjustTheme();
+    }
+
+    private void AdjustTheme()
+    {
+        float brightness = WindowContrastHelper.GetBackdropBrightness(this);
+        float threshold = 0.3f;
+        RequestedThemeVariant = brightness < threshold ? ThemeVariant.Dark : ThemeVariant.Light;
     }
 
     private void FetchWindows()

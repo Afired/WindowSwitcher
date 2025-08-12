@@ -15,6 +15,30 @@ public class WindowSwitcherTheme : Styles
 {
     public WindowSwitcherTheme()
     {
+        Resources.ThemeDictionaries.Add(ThemeVariant.Default, new ResourceDictionary
+        {
+            // ["ComplimentaryBrush"] = new SolidColorBrush(Colors.Green),
+            // ["ContrastBrush"] = new SolidColorBrush(Colors.Red),
+        });
+        Resources.ThemeDictionaries.Add(ThemeVariant.Dark, new ResourceDictionary
+        {
+            ["ComplimentaryBrushLow"] = new SolidColorBrush(Colors.Black, 0.1d),
+            ["ComplimentaryBrushMedium"] = new SolidColorBrush(Colors.Black, 0.5d),
+            ["ComplimentaryBrushHigh"] = new SolidColorBrush(Colors.Black, 0.8d),
+            ["ContrastBrushLow"] = new SolidColorBrush(Colors.White, 0.1d),
+            ["ContrastBrushMedium"] = new SolidColorBrush(Colors.White, 0.5d),
+            ["ContrastBrushHigh"] = new SolidColorBrush(Colors.White, 0.8d),
+        });
+        Resources.ThemeDictionaries.Add(ThemeVariant.Light, new ResourceDictionary
+        {
+            ["ComplimentaryBrushLow"] = new SolidColorBrush(Colors.White, 0.1d),
+            ["ComplimentaryBrushMedium"] = new SolidColorBrush(Colors.White, 0.5d),
+            ["ComplimentaryBrushHigh"] = new SolidColorBrush(Colors.White, 0.8d),
+            ["ContrastBrushLow"] = new SolidColorBrush(Colors.Black, 0.1d),
+            ["ContrastBrushMedium"] = new SolidColorBrush(Colors.Black, 0.5d),
+            ["ContrastBrushHigh"] = new SolidColorBrush(Colors.Black, 0.8d),
+        });
+        
         Add(new Style(x => x.OfType<ListBox>().Class("WindowList"))
         {
             Setters = { },
