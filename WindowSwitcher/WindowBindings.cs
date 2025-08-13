@@ -45,29 +45,14 @@ public static class WindowBindings
         public int length;
         public int flags;
         public int showCmd;
-        public System.Drawing.Point ptMinPosition;
-        public System.Drawing.Point ptMaxPosition;
-        public System.Drawing.Rectangle rcNormalPosition;
+        public POINT ptMinPosition;
+        public POINT ptMaxPosition;
+        public RECT rcNormalPosition;
     }
     
     [DllImport("user32.dll")]
     public static extern bool SetForegroundWindow(IntPtr hWnd);
     
-    public static void ActivateWindow(IntPtr hWnd)
-    {
-        var placement = new WindowBindings.WindowPlacement();
-        placement.length = Marshal.SizeOf(placement);
-
-        WindowBindings.GetWindowPlacement(hWnd, ref placement);
-
-        if (placement.showCmd == WindowBindings.SW_SHOWMAXIMIZED)
-            WindowBindings.ShowWindow(hWnd, WindowBindings.SW_SHOWMAXIMIZED);
-        else
-            WindowBindings.ShowWindow(hWnd, WindowBindings.SW_RESTORE);
-
-        WindowBindings.SetForegroundWindow(hWnd);
-    }
-
     [DllImport("user32.dll")]
     public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
     
@@ -84,11 +69,7 @@ public static class WindowBindings
     }
 
     [DllImport("dwmapi.dll")]
-    private static extern int DwmSetWindowAttribute(
-        IntPtr hwnd,
-        uint dwAttribute,
-        ref DwmWindowCornerPreference pvAttribute,
-        uint cbAttribute);
+    private static extern int DwmSetWindowAttribute(IntPtr hwnd, uint dwAttribute, ref DwmWindowCornerPreference pvAttribute, uint cbAttribute);
 
     public static void SetRoundedCorners(Window window, DwmWindowCornerPreference cornerPreference)
     {
@@ -148,4 +129,27 @@ public static class WindowBindings
         public int Right;
         public int Bottom;
     }
+    
+    public const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+    public const uint PROCESS_QUERY_INFORMATION = 0x0400;
+    public const uint PROCESS_VM_READ = 0x0010;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool EnumDesktopWindows(IntPtr hDesktop, EnumWindowsProc lpEnumFunc, IntPtr lParam);
+
+    [DllImport("psapi.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    public static extern uint GetModuleBaseName(IntPtr hProcess, IntPtr hModule, StringBuilder lpBaseName, int nSize);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern IntPtr OpenProcess(uint processAccess, bool bInheritHandle, uint processId);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern bool CloseHandle(IntPtr hObject);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct POINT { public int X, Y; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct RECT { public int Left, Top, Right, Bottom; }
+
 }

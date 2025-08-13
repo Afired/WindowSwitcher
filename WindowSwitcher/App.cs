@@ -4,6 +4,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Styling;
 using Avalonia.Themes.Fluent;
 using Avalonia.Threading;
+using WindowSwitcher.Services;
 
 namespace WindowSwitcher;
 
@@ -35,7 +36,7 @@ public class App : Application
                 {
                     if (_launcher is null)
                     {
-                        _launcher = new LauncherWindow();
+                        _launcher = new LauncherWindow(new WindowService());
                         _launcher.Closed += (_, _) => _launcher = null;
                     }
                     

@@ -14,6 +14,7 @@ using Avalonia.Media;
 using Avalonia.Platform;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using WindowSwitcher.Services;
 
 namespace WindowSwitcher;
 
@@ -23,6 +24,8 @@ public class LauncherWindow : Window
     private readonly ListBox _resultsList;
     private readonly ObservableCollection<WindowEntry> _allWindows = new();
     private readonly ObservableCollection<WindowEntry> _filteredWindows = new();
+    
+    private readonly IWindowService _windowService;
     
     public static readonly FrozenSet<string> BlacklistedProcessNames = new HashSet<string>()
     {
@@ -47,8 +50,10 @@ public class LauncherWindow : Window
         return null;
     }
 
-    public LauncherWindow()
+    public LauncherWindow(IWindowService windowService)
     {
+        _windowService =  windowService;
+        
         Screen? screen = GetLastFocusedScreen() ?? Screens.Primary;
         PixelRect workingArea = screen.WorkingArea;
         
@@ -135,7 +140,7 @@ public class LauncherWindow : Window
                             }
                         }.WithPointerPressedEvent((_, e) =>
                         {
-                            WindowBindings.ActivateWindow(windowEntry.Info.Handle);
+                            _windowService.ActivateWindow(windowEntry.Info.Handle);
                             e.Handled = true;
                             Close();
                         }), true),
@@ -163,7 +168,7 @@ public class LauncherWindow : Window
         // for debugging purposes we don't automatically close the window in debug builds
         Deactivated += (_, _) => Close();
 #endif
-        FetchWindows();
+        FetchWindows(windowService);
         AdjustTheme();
     }
 
@@ -174,12 +179,12 @@ public class LauncherWindow : Window
         RequestedThemeVariant = brightness < threshold ? ThemeVariant.Dark : ThemeVariant.Light;
     }
 
-    private void FetchWindows()
+    private void FetchWindows(IWindowService windowService)
     {
         // fetch available windows
         new Thread(() =>
         {
-            WindowEntry[] windowEntries = Desktop.GetWindows()
+            WindowEntry[] windowEntries = windowService.GetWindows()
                 .Where(x => x is
                 {
                     IsVisible: true,
@@ -246,7 +251,7 @@ public class LauncherWindow : Window
         {
             if (_resultsList.SelectedItem is WindowEntry windowEntry)
             {
-                WindowBindings.ActivateWindow(windowEntry.Info.Handle);
+                _windowService.ActivateWindow(windowEntry.Info.Handle);
                 e.Handled = true;
                 Close();
             }
@@ -288,7 +293,7 @@ public class LauncherWindow : Window
         {
             if (_resultsList.SelectedItem is WindowEntry windowEntry)
             {
-                WindowBindings.ActivateWindow(windowEntry.Info.Handle);
+                _windowService.ActivateWindow(windowEntry.Info.Handle);
             }
             e.Handled = true;
             Close();
@@ -307,7 +312,7 @@ public class LauncherWindow : Window
         {
             if (_resultsList.SelectedItem is WindowEntry windowEntry)
             {
-                WindowBindings.ActivateWindow(windowEntry.Info.Handle);
+                _windowService.ActivateWindow(windowEntry.Info.Handle);
             }
             e.Handled = true;
             Close();
