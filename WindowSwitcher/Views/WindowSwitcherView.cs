@@ -1,39 +1,25 @@
 ﻿using System;
-using System.Collections.Frozen;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Linq;
-using System.Threading;
 using Avalonia.Controls.Templates;
+using Avalonia.Data;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 using Avalonia.Platform;
 using Avalonia.Styling;
-using Avalonia.Threading;
-using WindowSwitcher.Services;
+using WindowSwitcher.Bindings;
+using WindowSwitcher.ViewModel;
 
-namespace WindowSwitcher;
+namespace WindowSwitcher.Views;
 
-public class LauncherWindow : Window
+public class WindowSwitcherView : Window
 {
     private readonly TextBox _searchBox;
     private readonly ListBox _resultsList;
-    private readonly ObservableCollection<WindowEntry> _allWindows = new();
-    private readonly ObservableCollection<WindowEntry> _filteredWindows = new();
+    private WindowSwitcherViewModel _viewModel;
     
-    private readonly IWindowService _windowService;
-    
-    public static readonly FrozenSet<string> BlacklistedProcessNames = new HashSet<string>()
-    {
-        "ApplicationFrameHost",
-        "SystemSettings",
-        "TextInputHost",
-    }.ToFrozenSet();
-
     public Screen? GetLastFocusedScreen()
     {
         Screens screens = Screens;
@@ -43,16 +29,17 @@ public class LauncherWindow : Window
             // Use the window's center point
             int centerX = (rect.Left + rect.Right) / 2;
             int centerY = (rect.Top + rect.Bottom) / 2;
-
+            
             return screens.ScreenFromPoint(new PixelPoint(centerX, centerY));
         }
-
+        
         return null;
     }
-
-    public LauncherWindow(IWindowService windowService)
+    
+    public WindowSwitcherView(WindowSwitcherViewModel viewModel)
     {
-        _windowService =  windowService;
+        _viewModel = viewModel;
+        DataContext = _viewModel;
         
         Screen? screen = GetLastFocusedScreen() ?? Screens.Primary;
         PixelRect workingArea = screen.WorkingArea;
@@ -87,6 +74,7 @@ public class LauncherWindow : Window
                     {
                         Classes = { "WindowSearch" },
                         Watermark = "Search...",
+                        [!TextBox.TextProperty] = new Binding(nameof(WindowSwitcherViewModel.SearchTerm)),
                     },
                     _resultsList = new ListBox
                     {
@@ -94,7 +82,7 @@ public class LauncherWindow : Window
                         RowDefinition = new RowDefinition(GridLength.Star),
                         [!ListBox.BackgroundProperty] = new DynamicResourceExtension("ComplimentaryBrushLow"),
                         CornerRadius = new CornerRadius(3),
-                        ItemsSource = _filteredWindows,
+                        ItemsSource = _viewModel.FilteredWindows,
                         ItemTemplate = new FuncDataTemplate<WindowEntry>((windowEntry, _) => new Border
                         {
                             Padding = new Thickness(10),
@@ -140,7 +128,7 @@ public class LauncherWindow : Window
                             }
                         }.WithPointerPressedEvent((_, e) =>
                         {
-                            _windowService.ActivateWindow(windowEntry.Info.Handle);
+                            _viewModel.RequestToActivateWindow(windowEntry);
                             e.Handled = true;
                             Close();
                         }), true),
@@ -150,8 +138,6 @@ public class LauncherWindow : Window
         };
         
         _searchBox.KeyDown += SearchBoxOnKeyDown;
-        _searchBox.TextChanged += (_, _) => ApplyFilter();
-        _allWindows.CollectionChanged += (_, _) => ApplyFilter();
         _searchBox.KeyUp += SearchBoxOnKeyUp;
         KeyDown += OnKeyDown;
         
@@ -161,87 +147,24 @@ public class LauncherWindow : Window
             _searchBox.Focus();
             // _resultsList.SelectedIndex = 0;
         };
-
+        
 #if DEBUG
         this.AttachDevTools();
 #else
         // for debugging purposes we don't automatically close the window in debug builds
         Deactivated += (_, _) => Close();
 #endif
-        FetchWindows(windowService);
+        _viewModel.FetchWindows();
         AdjustTheme();
     }
-
+    
     private void AdjustTheme()
     {
         float brightness = WindowContrastHelper.GetBackdropBrightness(this);
         float threshold = 0.3f;
         RequestedThemeVariant = brightness < threshold ? ThemeVariant.Dark : ThemeVariant.Light;
     }
-
-    private void FetchWindows(IWindowService windowService)
-    {
-        // fetch available windows
-        new Thread(() =>
-        {
-            WindowEntry[] windowEntries = windowService.GetWindows()
-                .Where(x => x is
-                {
-                    IsVisible: true,
-                    Title.Length: > 0,
-                    IsToolWindow: false,
-                })
-                .Where(x => !BlacklistedProcessNames.Contains(x.ProcessName))
-                .OrderBy(x => x.ProcessName)
-                .Select(x =>
-                {
-                    System.Drawing.Icon? icon = WindowBindings.GetIconForWindow(x.Handle);
-                    Avalonia.Media.Imaging.Bitmap? bitmap = null;
-                    if (icon != null)
-                    {
-                        bitmap = WindowBindings.ConvertToAvaloniaBitmap(icon);
-                    }
-
-                    return new WindowEntry
-                    {
-                        Icon = bitmap,
-                        Info = x,
-                    };
-                }).ToArray();
-            
-            Dispatcher.UIThread.Post(() =>
-            {
-                foreach (WindowEntry windowEntry in windowEntries)
-                {
-                    _allWindows.Add(windowEntry);
-                }
-            });
-        })
-        {
-            IsBackground = true,
-        }.Start();
-    }
-
-    private void ApplyFilter()
-    {
-        string query = _searchBox.Text ?? string.Empty;
-        IEnumerable<WindowEntry> matches = _allWindows.Where(x => x.Info.ProcessName.StartsWith(query, StringComparison.OrdinalIgnoreCase));
-
-        _filteredWindows.Clear();
-        foreach (var item in matches)
-        {
-            _filteredWindows.Add(item);
-        }
-
-        if (query != string.Empty)
-        {
-            if (!((IEnumerable<WindowEntry>)_resultsList.ItemsSource).Contains(_resultsList.SelectedItem as WindowEntry))
-            {
-                _resultsList.SelectedIndex = 0;
-            }
-        }
-    }
-
+    
     private void SearchBoxOnKeyUp(object? sender, KeyEventArgs e)
     {
         bool isQuickSwitch = e
@@ -251,13 +174,13 @@ public class LauncherWindow : Window
         {
             if (_resultsList.SelectedItem is WindowEntry windowEntry)
             {
-                _windowService.ActivateWindow(windowEntry.Info.Handle);
+                _viewModel.RequestToActivateWindow(windowEntry);
                 e.Handled = true;
                 Close();
             }
         }
     }
-
+    
     private void SearchBoxOnKeyDown(object? sender, KeyEventArgs e)
     {
         int? navigationInfo = e switch
@@ -293,7 +216,7 @@ public class LauncherWindow : Window
         {
             if (_resultsList.SelectedItem is WindowEntry windowEntry)
             {
-                _windowService.ActivateWindow(windowEntry.Info.Handle);
+                _viewModel.RequestToActivateWindow(windowEntry);
             }
             e.Handled = true;
             Close();
@@ -305,14 +228,14 @@ public class LauncherWindow : Window
             Close();
         }
     }
-
+    
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {
         if (e.Key == Key.Enter)
         {
             if (_resultsList.SelectedItem is WindowEntry windowEntry)
             {
-                _windowService.ActivateWindow(windowEntry.Info.Handle);
+                _viewModel.RequestToActivateWindow(windowEntry);
             }
             e.Handled = true;
             Close();

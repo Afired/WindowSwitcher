@@ -6,7 +6,7 @@ using System.Text;
 using Avalonia.Controls;
 using Avalonia.Media.Imaging;
 
-namespace WindowSwitcher;
+namespace WindowSwitcher.Bindings;
 
 public static class WindowBindings
 {

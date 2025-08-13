@@ -5,12 +5,14 @@ using Avalonia.Styling;
 using Avalonia.Themes.Fluent;
 using Avalonia.Threading;
 using WindowSwitcher.Services;
+using WindowSwitcher.ViewModel;
+using WindowSwitcher.Views;
 
 namespace WindowSwitcher;
 
 public class App : Application
 {
-    private LauncherWindow? _launcher;
+    private WindowSwitcherView? _launcher;
     
     public override void Initialize()
     {
@@ -36,7 +38,7 @@ public class App : Application
                 {
                     if (_launcher is null)
                     {
-                        _launcher = new LauncherWindow(new WindowService());
+                        _launcher = new WindowSwitcherView(new WindowSwitcherViewModel(new WindowService()));
                         _launcher.Closed += (_, _) => _launcher = null;
                     }
                     
